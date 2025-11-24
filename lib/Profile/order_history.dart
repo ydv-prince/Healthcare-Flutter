@@ -134,6 +134,8 @@ class _OrderHistoryState extends State<OrderHistory> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Order History"),
+        foregroundColor: Colors.white,
+        backgroundColor: Colors.blue,
         centerTitle: true,
       ),
       backgroundColor: Colors.grey.shade100,

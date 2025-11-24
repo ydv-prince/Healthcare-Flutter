@@ -146,6 +146,7 @@ class _AddToCartState extends State<AddToCart> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("My Cart"),
+        foregroundColor: Colors.white,
         backgroundColor: Colors.blue,
         elevation: 0,
       ),

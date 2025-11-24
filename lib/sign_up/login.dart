@@ -103,8 +103,7 @@ class _LoginState extends State<Login> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context)),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 30),
                   const Center(child: Text("Sign In", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
                   const SizedBox(height: 30),
                   TextFormField(

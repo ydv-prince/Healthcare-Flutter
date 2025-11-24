@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // To get current user UID
 import 'package:healthcare/services/firestore_service.dart'; // For saving the order
 import 'package:healthcare/models/cart_item_model.dart'; // Required for cart data structure
-// Required for pre-filling details
 import 'package:healthcare/Pharmacy/pharmacy1.dart'; // Navigation destination
+import 'package:razorpay_flutter/razorpay_flutter.dart'; // 1. IMPORT RAZORPAY
 
 class BuyNowPage extends StatefulWidget {
   final List<CartItemModel> cartItems;
@@ -24,10 +24,15 @@ class _BuyNowPageState extends State<BuyNowPage> {
   final FirestoreService _firestoreService = FirestoreService();
   final String? _currentPatientUid = FirebaseAuth.instance.currentUser?.uid;
 
-  String? _selectedPayment = "Cash on Delivery"; // Changed default to COD
+  String? _selectedPayment = "Cash on Delivery"; // Default to COD
   bool _isLoading = false;
   bool _isDataLoading = true;
 
+  // Razorpay setup
+  late Razorpay _razorpay;
+  // NOTE: REPLACE WITH YOUR ACTUAL RAZORPAY KEY
+  static const String razorKeyId = 'rzp_test_Rjg8fOCcrmMHWC'; 
+  
   // Text controllers
   final _nameController = TextEditingController();
   final _numberController = TextEditingController();
@@ -38,6 +43,12 @@ class _BuyNowPageState extends State<BuyNowPage> {
   void initState() {
     super.initState();
     _fetchAndPrefillUserData();
+    
+    // 2. INITIALIZE RAZORPAY
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
   }
   
   // --- Data Fetching and Prefilling ---
@@ -48,12 +59,11 @@ class _BuyNowPageState extends State<BuyNowPage> {
     }
     
     try {
-      final user = await _firestoreService.getUserData(_currentPatientUid);
+      final user = await _firestoreService.getUserData(_currentPatientUid!);
       if (mounted) {
         _nameController.text = user.name;
         _emailController.text = user.email;
         _numberController.text = user.phone ?? '';
-        // Note: Address must be fetched from a dedicated 'delivery_address' field in a real app
       }
     } catch (e) {
       print("Error pre-filling user data: $e");
@@ -62,19 +72,12 @@ class _BuyNowPageState extends State<BuyNowPage> {
     }
   }
 
-  // --- Order Submission Logic ---
-  Future<void> _placeOrder() async {
-    if (!_formKey.currentState!.validate() || _selectedPayment == null) {
-      _showSnackbar("Please fill all fields and select a payment method.", isError: true);
-      return;
+  // --- Order Submission and Navigation Logic (Common for COD/UPI Success) ---
+  Future<void> _placeOrderAndNavigate({String? razorpayPaymentId}) async {
+    if (_currentPatientUid == null) {
+       _showSnackbar('Authentication error. Please log in again.', isError: true);
+       return;
     }
-
-    if (widget.cartItems.isEmpty) {
-      _showSnackbar("Cart is empty. Cannot place order.", isError: true);
-      return;
-    }
-
-    setState(() => _isLoading = true);
 
     try {
       // 1. Prepare items for Firestore (Map structure)
@@ -95,6 +98,8 @@ class _BuyNowPageState extends State<BuyNowPage> {
         'date_placed': DateTime.now(),
         'status': 'processing', // Initial status
         'payment_mode': _selectedPayment,
+        // Include payment ID if available (for UPI/Online)
+        'payment_id': razorpayPaymentId, 
         'shipping_details': {
           'name': _nameController.text.trim(),
           'phone': _numberController.text.trim(),
@@ -104,10 +109,8 @@ class _BuyNowPageState extends State<BuyNowPage> {
         'items': itemsList,
       };
 
-      // 3. Save to Firestore (Assuming you add a placeOrder method to FirestoreService)
-      // Since we didn't define `placeOrder`, we'll use a direct collection reference:
+      // 3. Save to Firestore
       await _firestoreService.placeOrder(orderData);
-
 
       _showSnackbar('Order placed successfully!', isError: false);
 
@@ -116,15 +119,100 @@ class _BuyNowPageState extends State<BuyNowPage> {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const Pharmacy1()),
-          (route) => route.isFirst, // Clear all pages above the main navigation page (Pharmacy1)
+          (route) => route.isFirst, 
         );
       }
-
     } catch (e) {
       _showSnackbar('Order failed: ${e.toString()}', isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // --- Main Order Submission Logic ---
+  Future<void> _placeOrder() async {
+    if (!_formKey.currentState!.validate() || _selectedPayment == null) {
+      _showSnackbar("Please fill all fields and select a payment method.", isError: true);
+      return;
+    }
+
+    if (widget.cartItems.isEmpty) {
+      _showSnackbar("Cart is empty. Cannot place order.", isError: true);
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    
+    if (_selectedPayment == "Cash on Delivery") {
+      // Handle COD directly
+      await _placeOrderAndNavigate();
+    } else if (_selectedPayment == "UPI/Online Payment") {
+      // Handle UPI/Online via Razorpay
+      _handleRazorpayPayment();
+    } else {
+       // Should not happen if radio buttons are set up correctly
+       _showSnackbar("Invalid payment method selected.", isError: true);
+       setState(() => _isLoading = false);
+    }
+  }
+  
+  // --- Razorpay Payment Handler ---
+  void _handleRazorpayPayment() {
+    // Razorpay amount is in the smallest currency unit (e.g., paise for INR)
+    final amountInPaise = (widget.totalAmount * 100).round();
+
+    var options = {
+      'key': razorKeyId,
+      'amount': amountInPaise, 
+      'name': 'HealthCare Pharma', 
+      'description': 'Medicine Order #${DateTime.now().millisecondsSinceEpoch}',
+      'timeout': 300, // in seconds
+      'prefill': {
+        'contact': _numberController.text.trim(),
+        'email': _emailController.text.trim(),
+      },
+      // Ensure the UPI payment method is explicitly requested
+      'method': {
+        'upi': true,
+        'card': true,
+        'netbanking': true,
+        'wallet': true
+      },
+      'theme': {
+        'color': '#1976D2' // Blue theme color
+      }
+    };
+
+    try {
+      _razorpay.open(options);
+    } catch (e) {
+      _showSnackbar("Error initializing Razorpay: $e", isError: true);
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // --- Razorpay Success Listener ---
+  void _handlePaymentSuccess(PaymentSuccessResponse response) {
+    print("Razorpay Success: ${response.paymentId}");
+    _showSnackbar('Payment Successful! ID: ${response.paymentId}', isError: false);
+    
+    // Save order with payment ID
+    _placeOrderAndNavigate(razorpayPaymentId: response.paymentId);
+    // Note: _isLoading is set to false in _placeOrderAndNavigate finally block
+  }
+
+  // --- Razorpay Error Listener ---
+  void _handlePaymentError(PaymentFailureResponse response) {
+    print("Razorpay Error: ${response.code} - ${response.message}");
+    _showSnackbar('Payment Failed: ${response.code} - ${response.message}', isError: true);
+    setState(() => _isLoading = false);
+  }
+
+  // --- Razorpay External Wallet Listener (Optional) ---
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    print("Razorpay External Wallet: ${response.walletName}");
+    _showSnackbar('Payment initiated with External Wallet: ${response.walletName}', isError: false);
+    // You might want to handle this case, but typically it behaves like a success/error flow.
   }
   
   void _showSnackbar(String message, {bool isError = false}) {
@@ -228,9 +316,9 @@ class _BuyNowPageState extends State<BuyNowPage> {
                 // Payment Options
                 Column(
                   children: [
-                    // UPI
+                    // UPI / Online
                     RadioListTile<String>(
-                      title: const Text("UPI / Online Payment"),
+                      title: const Text("UPI / Online Payment (Razorpay)"),
                       value: "UPI/Online Payment",
                       groupValue: _selectedPayment,
                       onChanged: (value) => setState(() => _selectedPayment = value),
@@ -244,8 +332,8 @@ class _BuyNowPageState extends State<BuyNowPage> {
                     ),
                     // Placeholder for Card/Razorpay
                     RadioListTile<String>(
-                      title: const Text("Card (Unavailable in Demo)"),
-                      value: "Card",
+                      title: const Text("Card (Included in Online Option)"),
+                      value: "Card (Disabled)", // Changed value to a unique disabled one
                       groupValue: _selectedPayment,
                       onChanged: null, // Disable this option
                     ),
@@ -298,11 +386,11 @@ class _BuyNowPageState extends State<BuyNowPage> {
 
   @override
   void dispose() {
+    _razorpay.clear(); 
     _nameController.dispose();
     _numberController.dispose();
     _emailController.dispose();
     _addressController.dispose();
     super.dispose();
   }
-  
 }

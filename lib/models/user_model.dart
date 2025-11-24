@@ -6,6 +6,7 @@ class UserModel {
   final String email;
   final String role;
   final String? phone;
+  final String? profilePictureUrl; // ADDED: Field to hold the profile image URL
   // Note: We use Map<String, dynamic> for safety when reading from Firestore
   final List<Map<String, dynamic>> emergencyContacts; 
 
@@ -15,6 +16,7 @@ class UserModel {
     required this.email,
     required this.role,
     this.phone,
+    this.profilePictureUrl, // ADDED: To the constructor
     this.emergencyContacts = const [], // Initialize with an empty list for safety
   });
 
@@ -34,6 +36,9 @@ class UserModel {
       role: safeData['role'] ?? 'patient',
       phone: safeData['phone'] as String?,
       
+      // ADDED: Retrieving the profile picture URL using the Firestore key
+      profilePictureUrl: safeData['profile_picture_url'] as String?, 
+
       emergencyContacts: rawContacts
           .map((e) => Map<String, dynamic>.from(e as Map))
           .toList(),

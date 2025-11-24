@@ -34,7 +34,7 @@ class _IntropageState extends State<Intropage> {
                 color: Colors.blue,
               ),
             ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 20),
 
             // Title
             const Text(

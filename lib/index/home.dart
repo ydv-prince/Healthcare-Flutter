@@ -1,48 +1,33 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart'; 
 import 'package:healthcare/Notification/notification.dart';
 import 'package:healthcare/Report/emargence.dart';
 import '../Profile/profilepage1.dart';
-import 'package:healthcare/Pharmacy/pharmacy1.dart';
+import 'package:healthcare/Pharmacy/pharmacy1.dart'; 
 import 'package:healthcare/ambulance/ambulancehome.dart';
 import 'package:healthcare/doctors/topDoctor.dart';
-import '../services/firestore_service.dart'; // REQUIRED
-import '../models/user_model.dart'; // REQUIRED
+import '../services/firestore_service.dart'; 
+import '../models/user_model.dart'; 
+import '../articles/health_articles_list.dart'; // NEW IMPORT
 
-// --- Dummy Widget for the actual Home content (as a separate body page) ---
+// --- Home Content Widget (Index 0: Main Dashboard UI) ---
 class HomeContent extends StatelessWidget {
-  final UserModel? user;
-  final FirestoreService _firestoreService = FirestoreService();
-
-  HomeContent({super.key, required this.user});
-
-  Widget _buildCategory(BuildContext context,
-      {required IconData icon, required String label, required Widget page}) {
-    return Column(
-      children: [
-        InkWell(
-          onTap: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => page));
-          },
-          child: CircleAvatar(
-            radius: 28,
-            backgroundColor: Colors.blue.shade600,
-            child: Icon(icon, color: Colors.white),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(label),
-      ],
-    );
-  }
-
+  final UserModel? user; 
+  const HomeContent({super.key, required this.user});
+  
   @override
   Widget build(BuildContext context) {
     final userName = user?.name ?? 'User'; 
     
+    // Logic to determine the image source
+    final ImageProvider imageProvider = (user?.profilePictureUrl?.isNotEmpty == true)
+        ? NetworkImage(user!.profilePictureUrl!) as ImageProvider
+        : const AssetImage('assets/user_placeholder.png') as ImageProvider;
+
     return SingleChildScrollView(
       child: Column(
         children: [
+          // Top Section: Welcome Header
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Container(
@@ -57,17 +42,12 @@ class HomeContent extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // const CircleAvatar(
-                      //   radius: 30,
-                      //   backgroundImage: AssetImage('assets/user_placeholder.png'), 
-                      // ),
-                      //const SizedBox(height: 12),
                       const Text(
                         "Welcome!",
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
                       ),
                       Text(
-                        userName,
+                        userName, // Display the user's fetched name
                         style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
@@ -78,16 +58,22 @@ class HomeContent extends StatelessWidget {
                     ],
                   ),
                   const Spacer(),
+                  // User Profile Image (Replaced hardcoded URL)
                   Container(
-                    width: 140,
+                    width: 140, 
                     height: 140,
                     decoration: BoxDecoration(
-                      image: const DecorationImage(
-                        image: AssetImage('assets/user_placeholder.png'),
+                      image: DecorationImage(
+                        // FIX: Use dynamic imageProvider based on user data
+                        image: imageProvider, 
                         fit: BoxFit.cover,
                       ),
                       borderRadius: BorderRadius.circular(20),
                     ),
+                    // Optional: Fallback text/icon if no image is available
+                    child: (user?.profilePictureUrl?.isEmpty ?? true)
+                        ? const Center(child: Icon(Icons.person, size: 60, color: Colors.white70))
+                        : null,
                   ),
                 ],
               ),
@@ -96,13 +82,13 @@ class HomeContent extends StatelessWidget {
           
           const SizedBox(height: 20),
 
-          // Main Scrollable Content
+          // Main Scrollable Content (Categories, Search, Articles, etc.)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Search bar
+                // Search bar (Placeholder)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
@@ -119,64 +105,91 @@ class HomeContent extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Category icons
+                
+                // Navigation Links (These push new screens onto the stack)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildCategory(context,
-                        icon: Icons.people, label: "Top Doctors", page: const Topdoctor()),
-                    _buildCategory(context,
-                        icon: Icons.local_pharmacy, label: "Pharmacy", page: const Pharmacy1()),
-                    _buildCategory(context,
-                        icon: Icons.local_hospital, label: "Ambulance", page: const Ambulancehome()),
-                    // Add fourth category if needed, e.g., Lab Tests
+                    // Example Navigation Link
+                    GestureDetector(
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const Topdoctor())),
+                      child: const Column(children: [Icon(Icons.people, size: 40, color: Colors.blue), Text('Doctors')]),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const Pharmacy1())),
+                      child: const Column(children: [Icon(Icons.local_pharmacy, size: 40, color: Colors.green), Text('Pharmacy')]),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const Ambulancehome())),
+                      child: const Column(children: [Icon(Icons.local_hospital, size: 40, color: Colors.red), Text('Ambulance')]),
+                    ),
                   ],
                 ),
-
+                
                 const SizedBox(height: 30),
-
-                // Health articles
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: const [
-                    Text(
-                      "Health Articles",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      "See all",
-                      style: TextStyle(fontSize: 14, color: Colors.blue, fontWeight: FontWeight.w500),
-                    ),
-                  ],
+                
+                // HEALTH ARTICLES SECTION (Made clickable)
+                GestureDetector(
+                  onTap: () {
+                    // Navigate to the full list of articles
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const HealthArticlesList()));
+                  },
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("Health Articles", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Icon(Icons.arrow_forward_ios, size: 16, color: Colors.blue),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 12),
 
-                // List of Articles (Static for now)
-                Column(
-                  children: List.generate(
-                    3,
-                    (index) => Card(
-                      margin: const EdgeInsets.symmetric(vertical: 8),
-                      elevation: 1,
-                      child: ListTile(
-                        leading: ClipRRect(
-                          borderRadius: BorderRadius.circular(8.0),
-                          child: Image(
-                            image: NetworkImage("https://picsum.photos/100/100?random=$index"),
-                            width: 60,
-                            height: 60,
-                            fit: BoxFit.cover,
+                // Preview of the first four articles
+                ...mockArticles.take(4).map((article) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => ArticleDetailsScreen(article: article)));
+                    },
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            image: DecorationImage(
+                              image: NetworkImage(article.imageUrl),
+                              fit: BoxFit.cover,
+                            ),
                           ),
                         ),
-                        title: Text("Health article ${index + 1}"),
-                        subtitle: const Text("5 min read"),
-                        trailing: const Icon(Icons.bookmark_border, color: Colors.grey),
-                      ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                article.title,
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                article.subtitle,
+                                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 50), // Extra space for scrolling
+                )).toList(),
+                
               ],
             ),
           ),
@@ -198,62 +211,67 @@ class _HomeState extends State<Home> {
   final FirestoreService _firestoreService = FirestoreService();
   final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
-  int _selectedIndex = 0;
+  int _selectedIndex = 0; // Tracks the current tab index
   UserModel? _userModel;
-
-  // List of body widgets corresponding to the BottomNavigationBar items
-  late final List<Widget> _pages = [
-    HomeContent(user: _userModel), // 0. Home
-    const NotificationPage(),      // 1. Notifications
-    const Emargence(),             // 2. Important/Emergency
-    const Profilepage1(),          // 3. Profile
-  ];
+  
+  late List<Widget> _pages; // List of widgets for the bottom navigation bar
 
   @override
   void initState() {
     super.initState();
-    _fetchUserData();
+    _loadUserData();
+    // Initialize pages immediately
+    _pages = [
+        HomeContent(user: _userModel), // Pass null initially
+        const NotificationPage(),      
+        const Emargence(),             
+        const Profilepage1(),          
+    ];
   }
 
-  // Fetch user data from Firestore
-  Future<void> _fetchUserData() async {
+  void _loadUserData() {
     if (currentUserId != null) {
-      try {
-        final user = await _firestoreService.getUserData(currentUserId!);
-        setState(() {
-          _userModel = user;
-          // Re-initialize the pages list with the fetched user model
-          _pages[0] = HomeContent(user: _userModel); 
-        });
-      } catch (e) {
-        // Handle error, e.g., log or show a temporary message
-        print('Error fetching user data: $e');
-      }
+      _userModel = null; // Reset model while loading
+      _firestoreService.getUserData(currentUserId!).then((user) {
+        if (mounted) {
+          setState(() {
+            _userModel = user;
+            // Update the HomeContent page with the fetched user data
+            _pages[0] = HomeContent(user: _userModel); 
+          });
+        }
+      }).catchError((e) {
+        print("Error fetching user data in Home: $e");
+        // Handle error, maybe navigate to login or show error state
+      });
     }
   }
 
+  // ⚠️ Tab tapping must ONLY update the index, which updates the body.
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
-    // The body automatically switches based on _selectedIndex, no Navigator.push needed.
   }
 
   @override
   Widget build(BuildContext context) {
-    // If user data is still loading, show a loading screen or keep the placeholder
-    if (_userModel == null && currentUserId != null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+    if (currentUserId == null) {
+      return const Scaffold(body: Center(child: Text("User ID missing. Please log in.")));
     }
     
+    // We use a simple check on _userModel status instead of a full FutureBuilder here
+    // as the data is handled in initState/loader method.
+    if (_userModel == null) {
+        return const Scaffold(body: Center(child: CircularProgressIndicator(color: Colors.blue)));
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
           _selectedIndex == 0 ? "Home Page" : 
           _selectedIndex == 1 ? "Notifications" : 
-          _selectedIndex == 2 ? "Emergency & Contacts" : 
+          _selectedIndex == 2 ? "Emergency" : 
           "Profile",
           style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w600, color: Colors.white),
         ),
@@ -261,24 +279,26 @@ class _HomeState extends State<Home> {
         automaticallyImplyLeading: false, 
         backgroundColor: Colors.blue.shade700,
         elevation: 0,
+        // The back button should only appear if we push a screen from a tab 
+        // (like TopDoctor or DoctorDetails), not here.
       ),
 
       backgroundColor: Colors.white,
 
-      // Display the current page based on the selected index
+      // FIX: The body displays the page corresponding to the selected index
       body: _pages[_selectedIndex], 
 
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
+        onTap: _onItemTapped, // Calls the index switcher above
         selectedItemColor: Colors.blue.shade700,
         unselectedItemColor: Colors.grey,
         showUnselectedLabels: true,
-        type: BottomNavigationBarType.fixed, // Use fixed type
+        type: BottomNavigationBarType.fixed, 
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
           BottomNavigationBarItem(icon: Icon(Icons.notifications), label: "Notifications"),
-          BottomNavigationBarItem(icon: Icon(Icons.local_hospital), label: "Emergency"), // Changed label
+          BottomNavigationBarItem(icon: Icon(Icons.local_hospital), label: "Emergency"), 
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
         ],
       ),

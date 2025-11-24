@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart'; 
 import 'package:healthcare/services/firestore_service.dart';
 import 'package:healthcare/models/user_model.dart';
-// Import all necessary pages for the menu
 import 'package:healthcare/Notification/notification.dart'; 
 import 'package:healthcare/Profile/appointment.dart'; 
 import 'package:healthcare/Profile/booked_ambulance.dart'; 
@@ -10,7 +9,7 @@ import 'package:healthcare/Profile/order_history.dart';
 import 'package:healthcare/Profile/profileSettings.dart'; 
 import 'package:healthcare/Report/emargence.dart'; 
 import 'package:healthcare/intropage.dart'; 
-import 'package:healthcare/Profile/add_to_cart.dart'; // View Cart Page
+import 'package:healthcare/Profile/add_to_cart.dart'; 
 
 class Profilepage1 extends StatefulWidget {
   const Profilepage1({super.key});
@@ -34,8 +33,8 @@ class _Profilepage1State extends State<Profilepage1> {
 
   void _loadUserData() {
     if (_currentUserId != null) {
-      // Assign the future method call to the state variable
-      _userDataFuture = _firestoreService.getUserData(_currentUserId);
+      // Re-initialize the Future to trigger FutureBuilder reload
+      _userDataFuture = _firestoreService.getUserData(_currentUserId!);
     }
   }
   
@@ -43,7 +42,7 @@ class _Profilepage1State extends State<Profilepage1> {
     try {
       await _auth.signOut();
       if (mounted) {
-        // ✅ CRITICAL FIX: Navigate to IntroPage and clear the stack completely
+        // CRITICAL FIX: Navigate to IntroPage and clear the stack completely
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const Intropage()),
@@ -79,10 +78,7 @@ class _Profilepage1State extends State<Profilepage1> {
           body: SingleChildScrollView(
             child: Column(
               children: [
-                // 🧍‍♂️ Profile Header
                 _buildProfileHeader(context, user),
-
-                // 🧭 Menu Items
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
@@ -94,7 +90,7 @@ class _Profilepage1State extends State<Profilepage1> {
                   ),
                   child: Column(
                     children: [
-                      // 1. PROFILE SETTINGS (Edit Profile)
+                      // EDIT PROFILE
                       _buildMenuItem(
                         icon: Icons.settings,
                         title: "Edit Profile",
@@ -103,43 +99,42 @@ class _Profilepage1State extends State<Profilepage1> {
                             context,
                             MaterialPageRoute(
                               builder: (context) => ProfileSettings(
-                                name: user.name,
-                                email: user.email,
-                                profileImage: user.uid, 
+                                name: user.name, 
+                                email: user.email, 
+                                // FIX: Reverting to the most probable and standard property name
+                                profileImageUrl: user.profilePictureUrl,
                               ),
                             ),
                           );
                           
-                          // ⚠️ FIX: If the result is true, trigger reload.
+                          // Reload user data when returning from settings if an update occurred.
                           if (didUpdate == true && mounted) {
                             setState(() {
-                              _loadUserData(); // Force FutureBuilder refresh
+                              _loadUserData(); 
                             });
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text("Profile updated successfully!")),
-                            );
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profile updated successfully!")));
                           }
                         },
                       ),
                       _buildDivider(),
                       
-                      // 2. APPOINTMENT HISTORY
+                      // APPOINTMENT HISTORY
                       _buildMenuItem(icon: Icons.calendar_today, title: "Appointments", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const Appointment()))),
                       _buildDivider(),
                       
-                      // 3. BOOKED AMBULANCE
+                      // BOOKED AMBULANCE
                       _buildMenuItem(icon: Icons.local_hospital, title: "Booked Ambulance", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const BookedAmbulance()))),
                       _buildDivider(),
                       
-                      // 4. ORDER HISTORY (PHARMACY)
+                      // ORDER HISTORY (PHARMACY)
                       _buildMenuItem(icon: Icons.receipt, title: "Order History", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const OrderHistory()))),
                       _buildDivider(),
                       
-                      // 5. VIEW CART / ORDERS
+                      // VIEW CART
                       _buildMenuItem(icon: Icons.shopping_cart, title: "View Cart / Orders", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AddToCart()))),
                       _buildDivider(),
                       
-                      // 6. LOGOUT
+                      // LOGOUT
                       _buildMenuItem(icon: Icons.logout, title: "Logout", onTap: _logout, isLogout: true),
                     ],
                   ),
@@ -156,6 +151,15 @@ class _Profilepage1State extends State<Profilepage1> {
   // --- HELPER WIDGETS ---
   
   Widget _buildProfileHeader(BuildContext context, UserModel user) {
+    // Determine the ImageProvider based on the URL property.
+    ImageProvider profileImageProvider;
+    // FIX: Reverting to the most probable and standard property name
+    if (user.profilePictureUrl?.isNotEmpty == true) {
+      profileImageProvider = NetworkImage(user.profilePictureUrl!);
+    } else {
+      profileImageProvider = const AssetImage('assets/user_placeholder.png');
+    }
+    
     return Container(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -163,11 +167,14 @@ class _Profilepage1State extends State<Profilepage1> {
           const SizedBox(height: 20),
           Center(
             child: CircleAvatar(
-              radius: 50,
-              // Check for presence of phone field for simple placeholder use
-              backgroundImage: user.phone?.isNotEmpty == true ? null : const AssetImage('assets/user_placeholder.png'),
-              backgroundColor: Colors.blueGrey, 
-              child: user.name.isEmpty ? const Icon(Icons.person, size: 50, color: Colors.white) : null,
+              radius: 50, 
+              backgroundColor: Colors.blueGrey,
+              // FIX: Use the determined profileImageProvider
+              backgroundImage: profileImageProvider,
+              // FIX: Reverting to the most probable and standard property name
+              child: (user.profilePictureUrl?.isEmpty ?? true) 
+                  ? const Icon(Icons.person, size: 50, color: Colors.white) 
+                  : null,
             ),
           ),
           const SizedBox(height: 20),
@@ -180,12 +187,7 @@ class _Profilepage1State extends State<Profilepage1> {
     );
   }
 
-  Widget _buildMenuItem({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-    bool isLogout = false,
-  }) {
+  Widget _buildMenuItem({required IconData icon, required String title, required VoidCallback onTap, bool isLogout = false}) {
     return ListTile(
       leading: Icon(icon, color: isLogout ? Colors.red : Colors.blue.shade700, size: 24),
       title: Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: isLogout ? Colors.red : Colors.black87)),

@@ -29,6 +29,8 @@ class _BuyNowPageState extends State<BuyNowPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Buy Now'),
+        foregroundColor: Colors.white,
+        backgroundColor: Colors.blue,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

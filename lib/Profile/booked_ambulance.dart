@@ -227,6 +227,8 @@ class _BookedAmbulanceState extends State<BookedAmbulance> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("My Booked Ambulances"),
+        foregroundColor: Colors.white,
+        backgroundColor: Colors.blue,
         centerTitle: true,
       ),
       backgroundColor: Colors.grey.shade100,
