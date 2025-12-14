@@ -59,7 +59,7 @@ class _BuyNowPageState extends State<BuyNowPage> {
     }
     
     try {
-      final user = await _firestoreService.getUserData(_currentPatientUid!);
+      final user = await _firestoreService.getUserData(_currentPatientUid);
       if (mounted) {
         _nameController.text = user.name;
         _emailController.text = user.email;

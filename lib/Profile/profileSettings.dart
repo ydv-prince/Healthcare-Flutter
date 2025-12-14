@@ -45,7 +45,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
     try {
       // NOTE: This fetch should ideally be integrated with the main profile page's 
       // data fetching to ensure consistency.
-      final user = await _firestoreService.getUserData(_currentUserId!);
+      final user = await _firestoreService.getUserData(_currentUserId);
       if(mounted) {
         setState(() {
           _phoneController = TextEditingController(text: user.phone ?? '');
@@ -83,7 +83,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
 
       // 1. UPLOAD IMAGE if selected
       if (_selectedImage != null) {
-        imageUrl = await _firestoreService.uploadProfilePicture(_currentUserId!, _selectedImage!);
+        imageUrl = await _firestoreService.uploadProfilePicture(_currentUserId, _selectedImage!);
       }
 
       // 2. Prepare update map
@@ -95,7 +95,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
       };
 
       // 3. Update Firestore
-      await _firestoreService.updateUserData(_currentUserId!, updateMap);
+      await _firestoreService.updateUserData(_currentUserId, updateMap);
 
       // 4. SUCCESS: Return true to the previous screen (Profilepage1) to trigger a reload.
       if (mounted) {

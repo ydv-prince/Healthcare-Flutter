@@ -188,7 +188,7 @@ class HomeContent extends StatelessWidget {
                       ],
                     ),
                   ),
-                )).toList(),
+                )),
                 
               ],
             ),

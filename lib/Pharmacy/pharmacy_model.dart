@@ -8,7 +8,7 @@ class Pharmacy {
 
   Pharmacy({
     required this.Pname,
-    required this.Quantity,
+    required this.Quantity,.
     required this.Price,
     required this.image,
     required this.Description,

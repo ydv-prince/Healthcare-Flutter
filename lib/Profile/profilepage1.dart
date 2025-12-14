@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart'; 
 import 'package:healthcare/services/firestore_service.dart';
 import 'package:healthcare/models/user_model.dart';
-import 'package:healthcare/Notification/notification.dart'; 
 import 'package:healthcare/Profile/appointment.dart'; 
 import 'package:healthcare/Profile/booked_ambulance.dart'; 
 import 'package:healthcare/Profile/order_history.dart'; 
 import 'package:healthcare/Profile/profileSettings.dart'; 
-import 'package:healthcare/Report/emargence.dart'; 
 import 'package:healthcare/intropage.dart'; 
 import 'package:healthcare/Profile/add_to_cart.dart'; 
 
@@ -34,7 +32,7 @@ class _Profilepage1State extends State<Profilepage1> {
   void _loadUserData() {
     if (_currentUserId != null) {
       // Re-initialize the Future to trigger FutureBuilder reload
-      _userDataFuture = _firestoreService.getUserData(_currentUserId!);
+      _userDataFuture = _firestoreService.getUserData(_currentUserId);
     }
   }
   
