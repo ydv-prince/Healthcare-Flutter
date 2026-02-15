@@ -1,4 +1,3 @@
-# Healthcare
 Finalized Healthcare Flutter Application with Firebase & Cloudinary Integration
 
 - Completed full Healthcare mobile application using Flutter.
